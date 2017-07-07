@@ -1,3 +1,5 @@
+#define DEFINE_INLINES
+
 #include "vterm_internal.h"
 
 #include <stdio.h>
@@ -5,11 +7,13 @@
 #include <stdarg.h>
 #include <string.h>
 
+#include "utf8.h"
+
 /*****************
  * API functions *
  *****************/
 
-static void *default_malloc(size_t size, void *allocdata)
+static void *default_malloc(size_t size, void *allocdata UNUSED)
 {
   void *ptr = malloc(size);
   if(ptr)
@@ -17,14 +21,14 @@ static void *default_malloc(size_t size, void *allocdata)
   return ptr;
 }
 
-static void default_free(void *ptr, void *allocdata)
+static void default_free(void *ptr, void *allocdata UNUSED)
 {
   free(ptr);
 }
 
 static VTermAllocatorFunctions default_allocator = {
-  .malloc = &default_malloc,
-  .free   = &default_free,
+  &default_malloc, /* malloc */
+  &default_free /* free */
 };
 
 VTerm *vterm_new(int rows, int cols)
@@ -128,21 +132,25 @@ static int outbuffer_is_full(VTerm *vt)
 
 INTERNAL void vterm_push_output_vsprintf(VTerm *vt, const char *format, va_list args)
 {
+  int written;
+  char buffer[1024]; /* 1Kbyte is enough for everybody, right? */
+
   if(outbuffer_is_full(vt)) {
     DEBUG_LOG("vterm_push_output(): buffer overflow; truncating output\n");
     return;
   }
 
-  int written = vsnprintf(vt->outbuffer + vt->outbuffer_cur,
-      vt->outbuffer_len - vt->outbuffer_cur,
-      format, args);
+  written = vsprintf(buffer, format, args);
 
-  if(written == vt->outbuffer_len - vt->outbuffer_cur) {
+  if(written >= (int)(vt->outbuffer_len - vt->outbuffer_cur)) {
     /* output was truncated */
-    vt->outbuffer_cur = vt->outbuffer_len - 1;
+    written = vt->outbuffer_len - vt->outbuffer_cur;
   }
-  else
+  if (written > 0)
+  {
+    strncpy(vt->outbuffer + vt->outbuffer_cur, buffer, written + 1);
     vt->outbuffer_cur += written;
+  }
 }
 
 INTERNAL void vterm_push_output_sprintf(VTerm *vt, const char *format, ...)
@@ -156,13 +164,13 @@ INTERNAL void vterm_push_output_sprintf(VTerm *vt, const char *format, ...)
 INTERNAL void vterm_push_output_sprintf_ctrl(VTerm *vt, unsigned char ctrl, const char *fmt, ...)
 {
   size_t orig_cur = vt->outbuffer_cur;
+  va_list args;
 
   if(ctrl >= 0x80 && !vt->mode.ctrl8bit)
     vterm_push_output_sprintf(vt, ESC_S "%c", ctrl - 0x40);
   else
     vterm_push_output_sprintf(vt, "%c", ctrl);
 
-  va_list args;
   va_start(args, fmt);
   vterm_push_output_vsprintf(vt, fmt, args);
   va_end(args);
@@ -174,13 +182,13 @@ INTERNAL void vterm_push_output_sprintf_ctrl(VTerm *vt, unsigned char ctrl, cons
 INTERNAL void vterm_push_output_sprintf_dcs(VTerm *vt, const char *fmt, ...)
 {
   size_t orig_cur = vt->outbuffer_cur;
+  va_list args;
 
   if(!vt->mode.ctrl8bit)
     vterm_push_output_sprintf(vt, ESC_S "%c", C1_DCS - 0x40);
   else
     vterm_push_output_sprintf(vt, "%c", C1_DCS);
 
-  va_list args;
   va_start(args, fmt);
   vterm_push_output_vsprintf(vt, fmt, args);
   va_end(args);
@@ -244,8 +252,6 @@ VTermValueType vterm_get_attr_type(VTermAttr attr)
     case VTERM_ATTR_FONT:       return VTERM_VALUETYPE_INT;
     case VTERM_ATTR_FOREGROUND: return VTERM_VALUETYPE_COLOR;
     case VTERM_ATTR_BACKGROUND: return VTERM_VALUETYPE_COLOR;
-
-    case VTERM_N_ATTRS: return 0;
   }
   return 0; /* UNREACHABLE */
 }
@@ -261,8 +267,6 @@ VTermValueType vterm_get_prop_type(VTermProp prop)
     case VTERM_PROP_REVERSE:       return VTERM_VALUETYPE_BOOL;
     case VTERM_PROP_CURSORSHAPE:   return VTERM_VALUETYPE_INT;
     case VTERM_PROP_MOUSE:         return VTERM_VALUETYPE_INT;
-
-    case VTERM_N_PROPS: return 0;
   }
   return 0; /* UNREACHABLE */
 }
@@ -347,6 +351,8 @@ void vterm_copy_cells(VTermRect dest,
   int init_row, test_row, init_col, test_col;
   int inc_row, inc_col;
 
+  VTermPos pos;
+
   if(downward < 0) {
     init_row = dest.end_row - 1;
     test_row = dest.start_row - 1;
@@ -369,10 +375,11 @@ void vterm_copy_cells(VTermRect dest,
     inc_col = +1;
   }
 
-  VTermPos pos;
   for(pos.row = init_row; pos.row != test_row; pos.row += inc_row)
     for(pos.col = init_col; pos.col != test_col; pos.col += inc_col) {
-      VTermPos srcpos = { pos.row + downward, pos.col + rightward };
+      VTermPos srcpos;
+      srcpos.row = pos.row + downward;
+      srcpos.col = pos.col + rightward;
       (*copycell)(pos, srcpos, user);
     }
 }

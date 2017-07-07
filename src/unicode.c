@@ -1,10 +1,11 @@
 #include "vterm_internal.h"
 
-// ### The following from http://www.cl.cam.ac.uk/~mgk25/ucs/wcwidth.c
-// With modifications:
-//   made functions static
-//   moved 'combining' table to file scope, so other functions can see it
-// ###################################################################
+/* ### The following from http://www.cl.cam.ac.uk/~mgk25/ucs/wcwidth.c
+ * With modifications:
+ *   made functions static
+ *   moved 'combining' table to file scope, so other functions can see it
+ * ###################################################################
+ */
 
 /*
  * This is an implementation of wcwidth() and wcswidth() (defined in
@@ -131,13 +132,13 @@ static int bisearch(uint32_t ucs, const struct interval *table, int max) {
   int min = 0;
   int mid;
 
-  if (ucs < table[0].first || ucs > table[max].last)
+  if ((int)ucs < table[0].first || (int)ucs > table[max].last)
     return 0;
   while (max >= min) {
     mid = (min + max) / 2;
-    if (ucs > table[mid].last)
+    if ((int)ucs > table[mid].last)
       min = mid + 1;
-    else if (ucs < table[mid].first)
+    else if ((int)ucs < table[mid].first)
       max = mid - 1;
     else
       return 1;
@@ -211,7 +212,7 @@ static int mk_wcwidth(uint32_t ucs)
       (ucs >= 0x30000 && ucs <= 0x3fffd)));
 }
 
-
+#if 0 /* unused */
 static int mk_wcswidth(const uint32_t *pwcs, size_t n)
 {
   int w, width = 0;
@@ -302,7 +303,6 @@ static int mk_wcwidth_cjk(uint32_t ucs)
   return mk_wcwidth(ucs);
 }
 
-
 static int mk_wcswidth_cjk(const uint32_t *pwcs, size_t n)
 {
   int w, width = 0;
@@ -315,9 +315,10 @@ static int mk_wcswidth_cjk(const uint32_t *pwcs, size_t n)
 
   return width;
 }
+#endif
 
-// ################################
-// ### The rest added by Paul Evans
+/* ################################
+ * ### The rest added by Paul Evans */
 
 INTERNAL int vterm_unicode_width(uint32_t codepoint)
 {

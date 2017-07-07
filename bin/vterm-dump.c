@@ -1,4 +1,4 @@
-// Require getopt(3)
+/* Require getopt(3) */
 #define _XOPEN_SOURCE
 
 #include <stdio.h>
@@ -22,28 +22,28 @@ static int parser_text(const char bytes[], size_t len, void *user)
 
   int i;
   for(i = 0; i < len; /* none */) {
-    if(b[i] < 0x20)        // C0
+    if(b[i] < 0x20)        /* C0 */
       break;
-    else if(b[i] < 0x80)   // ASCII
+    else if(b[i] < 0x80)   /* ASCII */
       i++;
-    else if(b[i] < 0xa0)   // C1
+    else if(b[i] < 0xa0)   /* C1 */
       break;
-    else if(b[i] < 0xc0)   // UTF-8 continuation
+    else if(b[i] < 0xc0)   /* UTF-8 continuation */
       break;
-    else if(b[i] < 0xe0) { // UTF-8 2-byte
-      // 2-byte UTF-8
+    else if(b[i] < 0xe0) { /* UTF-8 2-byte */
+      /* 2-byte UTF-8 */
       if(len < i+2) break;
       i += 2;
     }
-    else if(b[i] < 0xf0) { // UTF-8 3-byte
+    else if(b[i] < 0xf0) { /* UTF-8 3-byte */
       if(len < i+3) break;
       i += 3;
     }
-    else if(b[i] < 0xf8) { // UTF-8 4-byte
+    else if(b[i] < 0xf8) { /* UTF-8 4-byte */
       if(len < i+4) break;
       i += 4;
     }
-    else                   // otherwise invalid
+    else                   /* otherwise invalid */
       break;
   }
 
@@ -131,8 +131,11 @@ static int parser_csi(const char *leader, const long args[], int argcount, const
   if(leader && leader[0])
     printf(" %s", leader);
 
-  for(int i = 0; i < argcount; i++) {
-    printf(i ? "," : " ");
+  {
+    int i;
+    for(i = 0; i < argcount; i++) {
+      printf(i ? "," : " ");
+  }
 
     if(args[i] == CSI_ARG_MISSING)
       printf("*");
@@ -169,17 +172,23 @@ static int parser_dcs(const char *command, size_t cmdlen, void *user)
 }
 
 static VTermParserCallbacks parser_cbs = {
-  .text    = &parser_text,
-  .control = &parser_control,
-  .escape  = &parser_escape,
-  .csi     = &parser_csi,
-  .osc     = &parser_osc,
-  .dcs     = &parser_dcs,
+  &parser_text, /* text */
+  &parser_control, /* control */
+  &parser_escape, /* escape */
+  &parser_csi, /* csi */
+  &parser_osc, /* osc */
+  &parser_dcs, /* dcs */
+  NULL /* resize */
 };
 
 int main(int argc, char *argv[])
 {
   int use_colour = isatty(1);
+  const char *file;
+  int fd;
+  VTerm *vt;
+  int len;
+  char buffer[1024];
 
   int opt;
   while((opt = getopt(argc, argv, "c")) != -1) {
@@ -188,11 +197,10 @@ int main(int argc, char *argv[])
     }
   }
 
-  const char *file = argv[optind++];
+  file = argv[optind++];
 
-  int fd;
   if(!file || streq(file, "-"))
-    fd = 0; // stdin
+    fd = 0; /* stdin */
   else {
     fd = open(file, O_RDONLY);
     if(fd == -1) {
@@ -207,12 +215,10 @@ int main(int argc, char *argv[])
   }
 
   /* Size matters not for the parser */
-  VTerm *vt = vterm_new(25, 80);
+  vt = vterm_new(25, 80);
   vterm_set_utf8(vt, 1);
   vterm_parser_set_callbacks(vt, &parser_cbs, NULL);
 
-  int len;
-  char buffer[1024];
   while((len = read(fd, buffer, sizeof(buffer))) > 0) {
     vterm_input_write(vt, buffer, len);
   }
@@ -221,6 +227,5 @@ int main(int argc, char *argv[])
 
   close(fd);
   vterm_free(vt);
-
   return 0;
 }

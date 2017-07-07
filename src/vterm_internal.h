@@ -7,14 +7,22 @@
 
 #if defined(__GNUC__)
 # define INTERNAL __attribute__((visibility("internal")))
+# define UNUSED __attribute__((unused))
 #else
 # define INTERNAL
+# define UNUSED
 #endif
 
 #ifdef DEBUG
-# define DEBUG_LOG(...) fprintf(stderr, __VA_ARGS__)
+# define DEBUG_LOG(s) fprintf(stderr, s)
+# define DEBUG_LOG1(s, a) fprintf(stderr, s, a)
+# define DEBUG_LOG2(s, a, b) fprintf(stderr, s, a, b)
+# define DEBUG_LOG3(s, a, b, c) fprintf(stderr, s, a, b, c)
 #else
-# define DEBUG_LOG(...)
+# define DEBUG_LOG(s)
+# define DEBUG_LOG1(s, a)
+# define DEBUG_LOG2(s, a, b)
+# define DEBUG_LOG3(s, a, b, c)
 #endif
 
 #define ESC_S "\x1b"
@@ -24,7 +32,7 @@ typedef struct VTermEncoding VTermEncoding;
 typedef struct {
   VTermEncoding *enc;
 
-  // This size should be increased if required by other stateful encodings
+  /* This size should be increased if required by other stateful encodings */
   char           data[4*sizeof(uint32_t)];
 } VTermEncodingInstance;
 
@@ -41,10 +49,14 @@ struct VTermPen
   unsigned int font:4; /* To store 0-9 */
 };
 
-static inline int vterm_color_equal(VTermColor a, VTermColor b)
+int vterm_color_equal(VTermColor a, VTermColor b);
+
+#if defined(DEFINE_INLINES) || USE_INLINE
+INLINE int vterm_color_equal(VTermColor a, VTermColor b)
 {
   return a.red == b.red && a.green == b.green && a.blue == b.blue;
 }
+#endif
 
 struct VTermState
 {
@@ -91,9 +103,9 @@ struct VTermState
 
   /* Last glyph output, for Unicode recombining purposes */
   uint32_t *combine_chars;
-  size_t combine_chars_size; // Number of ELEMENTS in the above
-  int combine_width; // The width of the glyph above
-  VTermPos combine_pos;   // Position before movement
+  size_t combine_chars_size; /* Number of ELEMENTS in the above */
+  int combine_width; /* The width of the glyph above */
+  VTermPos combine_pos;   /* Position before movement */
 
   struct {
     unsigned int keypad:1;
@@ -118,7 +130,7 @@ struct VTermState
 
   VTermColor default_fg;
   VTermColor default_bg;
-  VTermColor colors[16]; // Store the 8 ANSI and the 8 ANSI high-brights only
+  VTermColor colors[16]; /* Store the 8 ANSI and the 8 ANSI high-brights only */
 
   int fg_index;
   int bg_index;
@@ -132,8 +144,8 @@ struct VTermState
     struct VTermPen pen;
 
     struct {
-      unsigned int cursor_visible:1;
-      unsigned int cursor_blink:1;
+      int cursor_visible:1;
+      int cursor_blink:1;
       unsigned int cursor_shape:2;
     } mode;
   } saved;
@@ -159,7 +171,7 @@ struct VTerm
     DCS,
     ESC,
     ESC_IN_OSC,
-    ESC_IN_DCS,
+    ESC_IN_DCS
   } parser_state;
   const VTermParserCallbacks *parser_callbacks;
   void *cbdata;
@@ -210,7 +222,7 @@ enum {
   C1_SS3 = 0x8f,
   C1_DCS = 0x90,
   C1_CSI = 0x9b,
-  C1_ST  = 0x9c,
+  C1_ST  = 0x9c
 };
 
 void vterm_state_push_output_sprintf_CSI(VTermState *vts, const char *format, ...);

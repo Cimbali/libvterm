@@ -34,12 +34,13 @@ static int getchoice(int *argip, int argc, char *argv[], const char *options[])
 typedef enum {
   OFF,
   ON,
-  QUERY,
+  QUERY
 } BoolQuery;
 
 static BoolQuery getboolq(int *argip, int argc, char *argv[])
 {
-  return getchoice(argip, argc, argv, (const char *[]){"off", "on", "query", NULL});
+  const char *choices[] = {"off", "on", "query", NULL};
+  return getchoice(argip, argc, argv, choices);
 }
 
 static char *helptext[] = {
@@ -78,9 +79,9 @@ static bool seticanon(bool icanon, bool echo)
   return ret;
 }
 
-static void await_c1(unsigned char c1)
+static void await_c1(int c1)
 {
-  unsigned char c;
+  int c;
 
   /* await CSI - 8bit or 2byte 7bit form */
   bool in_esc = false;
@@ -98,34 +99,36 @@ static void await_c1(unsigned char c1)
 
 static char *read_csi()
 {
-  await_c1(0x9B); // CSI
+  unsigned char csi[32];
+  int i = 0;
+
+  await_c1(0x9B); /* CSI */
 
   /* TODO: This really should be a more robust CSI parser
    */
-  char csi[32];
-  int i = 0;
   for(; i < sizeof(csi)-1; i++) {
-    char c = csi[i] = getchar();
+    int c = csi[i] = getchar();
     if(c >= 0x40 && c <= 0x7e)
       break;
   }
   csi[++i] = 0;
 
-  // TODO: returns longer than 32?
+  /* TODO: returns longer than 32? */
 
-  return strdup(csi);
+  return strdup((char *)csi);
 }
 
 static char *read_dcs()
 {
+  unsigned char dcs[32];
+  bool in_esc = false;
+  int i;
+
   await_c1(0x90);
 
-  char dcs[32];
-  bool in_esc = false;
-  int i = 0;
-  for(; i < sizeof(dcs)-1; ) {
+  for(i = 0; i < sizeof(dcs)-1; ) {
     char c = getchar();
-    if(c == 0x9c) // ST
+    if(c == 0x9c) /* ST */
       break;
     if(in_esc && c == 0x5c)
       break;
@@ -138,16 +141,18 @@ static char *read_dcs()
   }
   dcs[++i] = 0;
 
-  return strdup(dcs);
+  return strdup((char *)dcs);
 }
 
 static void usage(int exitcode)
 {
+  char **p;
+
   fprintf(stderr, "Control a libvterm-based terminal\n"
       "\n"
       "Options:\n");
 
-  for(char **p = helptext; *p; p++)
+  for(p = helptext; *p; p++)
     fprintf(stderr, "  %s\n", *p);
 
   exit(exitcode);
@@ -155,18 +160,20 @@ static void usage(int exitcode)
 
 static bool query_dec_mode(int mode)
 {
+  char *s = NULL;
+
   printf("\x1b[?%d$p", mode);
 
-  char *s = NULL;
   do {
+    int reply_mode, reply_value;
+    char reply_cmd;
+
     if(s)
       free(s);
     s = read_csi();
 
     /* expect "?" mode ";" value "$y" */
 
-    int reply_mode, reply_value;
-    char reply_cmd;
     /* If the sscanf format string ends in a literal, we can't tell from
      * its return value if it matches. Hence we'll %c the cmd and check it
      * explicitly
@@ -210,10 +217,13 @@ static void do_dec_mode(int mode, BoolQuery val, const char *name)
 
 static int query_rqss_numeric(char *cmd)
 {
+  char *s = NULL;
+
   printf("\x1bP$q%s\x1b\\", cmd);
 
-  char *s = NULL;
   do {
+    int num;
+
     if(s)
       free(s);
     s = read_dcs();
@@ -230,7 +240,6 @@ static int query_rqss_numeric(char *cmd)
     if(s[0] != '1' || s[1] != '$' || s[2] != 'r')
       return -1;
 
-    int num;
     if(sscanf(s + 3, "%d", &num) != 1)
       return -1;
 
@@ -262,7 +271,8 @@ int main(int argc, char *argv[])
       printf("\x1b" "c");
     }
     else if(streq(arg, "s8c1t")) {
-      switch(getchoice(&argi, argc, argv, (const char *[]){"off", "on", NULL})) {
+      const char *choices[] = {"off", "on", NULL};
+      switch(getchoice(&argi, argc, argv, choices)) {
       case 0:
         printf("\x1b F"); break;
       case 1:
@@ -270,7 +280,8 @@ int main(int argc, char *argv[])
       }
     }
     else if(streq(arg, "keypad")) {
-      switch(getchoice(&argi, argc, argv, (const char *[]){"app", "num", NULL})) {
+      const char *choices[] = {"app", "num", NULL};
+      switch(getchoice(&argi, argc, argv, choices)) {
       case 0:
         printf("\x1b="); break;
       case 1:
@@ -287,11 +298,12 @@ int main(int argc, char *argv[])
       do_dec_mode(12, getboolq(&argi, argc, argv), "curblink");
     }
     else if(streq(arg, "curshape")) {
-      // TODO: This ought to query the current value of DECSCUSR because it
-      //   may need blinking on or off
-      int shape = getchoice(&argi, argc, argv, (const char *[]){"block", "under", "bar", "query", NULL});
+      /* TODO: This ought to query the current value of DECSCUSR because it */
+      /*   may need blinking on or off */
+      const char *choices[] = {"block", "under", "bar", "query", NULL};
+      int shape = getchoice(&argi, argc, argv, choices);
       switch(shape) {
-        case 3: // query
+        case 3: /* query */
           shape = query_rqss_numeric(" q");
           switch(shape) {
             case 1: case 2:
@@ -314,7 +326,8 @@ int main(int argc, char *argv[])
       }
     }
     else if(streq(arg, "mouse")) {
-      switch(getchoice(&argi, argc, argv, (const char *[]){"off", "click", "clickdrag", "motion", NULL})) {
+      const char *choices[] = {"off", "click", "clickdrag", "motion", NULL};
+      switch(getchoice(&argi, argc, argv, choices)) {
       case 0:
         printf("\x1b[?1000l"); break;
       case 1:
@@ -345,6 +358,5 @@ int main(int argc, char *argv[])
       exit(1);
     }
   }
-
   return 0;
 }

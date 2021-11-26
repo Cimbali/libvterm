@@ -1,0 +1,53 @@
+name: Update mirrors
+
+on:
+  schedule:
+    # 7am UTC = 9am CET, 3am EDT, 0am PDT − should be light hours globally for WikiCFP.
+    - cron: '0 7 * * *'
+  workflow_dispatch:
+
+
+jobs:
+  update:
+    name: Update mirrors
+    runs-on: ubuntu-latest
+    steps:
+    - name: Install dependencies
+      run: |
+        python3 -m pip install breezy fastimport
+        git config --global user.email "github-actions[bot]@users.noreply.github.com"
+        git config --global user.name "github-actions[bot]"
+
+    - name: Checkout this repo
+      uses: actions/checkout@v2
+      with:
+        path: libvterm
+        ref: main
+
+    - name: Get the other remote references
+      run: |
+        git -C libvterm fetch origin  2>&1 | cat
+
+    - name: Import upstream bazaar
+      run: |
+        python3 -m breezy checkout http://bazaar.leonerd.org.uk/c/libvterm bazaar-leonerd-libvterm
+        python3 -m breezy fast-export --plain -b bazaar bazaar-leonerd-libvterm | git -C libvterm fast-import
+
+        git -C libvterm merge-base --is-ancestor origin/bazaar bazaar
+
+    - name: Import nvim fork
+      run: |
+        git -C libvterm fetch https://github.com/neovim/libvterm master  2>&1 | cat
+        git -C libvterm branch nvim FETCH_HEAD
+
+        git -C libvterm merge-base --is-ancestor origin/nvim nvim
+
+    - name: Import vim fork
+      run: |
+        git -C libvterm fetch https://github.com/vim/vim master  2>&1 | cat
+        mkdir -p libvterm/src/libvterm  # subtree split needs the prefix to exist even though we’re not on a relevant branch
+        git -C libvterm subtree split FETCH_HEAD --prefix=src/libvterm --onto=origin/vim --branch=vim
+
+    - name: Push mirrors to upstream branches
+      run: |
+        git -C libvterm push origin --tags bazaar nvim vim

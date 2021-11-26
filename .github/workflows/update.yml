@@ -43,25 +43,24 @@ jobs:
         git -C libvterm merge-base --is-ancestor origin/nvim nvim
 
     - name: Import vim fork
+      env:
+        FILTER_BRANCH_SQUELCH_WARNING: 1
       run: |
         git -C libvterm fetch https://github.com/vim/vim master  2>&1 | cat
 
         # Split into a new “orphan” branch (--onto= with our previous branch does not work),
         # the prefix to exist even though we’re not on a relevant branch.
         mkdir -p libvterm/src/libvterm
-        git -C libvterm subtree split FETCH_HEAD --prefix=src/libvterm --branch=vim
+        git -C libvterm subtree -q split FETCH_HEAD --prefix=src/libvterm --branch=vim
 
-        # Get info from the first commit in the branch
+        # Get info of the first commits in the orphan branch and the target branch
+        parent=893f9b300f9e6dddd987d123d3d142fa3d5b1d0b
+        stub=`git -C libvterm log --format=%H origin/vim ^$parent | tail -n1`
         graft=`git -C libvterm log --format=%H vim | tail -n1`
-        date=`git -C libvterm show -s --format=%ci $graft`
 
-        # Deterministically create a stub commit, i.e. ignoring commit dates
-        git -C libvterm checkout 893f9b300f9e6dddd987d123d3d142fa3d5b1d0b
-        git -C libvterm read-tree $graft
-        GIT_COMMITTER_DATE="$date" git -C libvterm commit -C $graft
-
-        # Similarly rebase the whole new branch with committer dates
-        git -C libvterm rebase --committer-date-is-author-date --onto HEAD $graft vim
+        # Rebase and reset committer info
+        git -C libvterm rebase -q --onto $stub $graft vim
+        git -C libvterm filter-branch -f --env-filter 'export GIT_COMMITTER_DATE="$GIT_AUTHOR_DATE" GIT_COMMITTER_NAME="$GIT_AUTHOR_NAME" GIT_COMMITTER_EMAIL="$GIT_AUTHOR_EMAIL"' vim ^$parent
 
         git -C libvterm merge-base --is-ancestor origin/vim vim
 

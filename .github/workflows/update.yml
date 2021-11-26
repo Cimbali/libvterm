@@ -45,8 +45,25 @@ jobs:
     - name: Import vim fork
       run: |
         git -C libvterm fetch https://github.com/vim/vim master  2>&1 | cat
-        mkdir -p libvterm/src/libvterm  # subtree split needs the prefix to exist even though we’re not on a relevant branch
-        git -C libvterm subtree split FETCH_HEAD --prefix=src/libvterm --onto=origin/vim --branch=vim
+
+        # Split into a new “orphan” branch (--onto= with our previous branch does not work),
+        # the prefix to exist even though we’re not on a relevant branch.
+        mkdir -p libvterm/src/libvterm
+        git -C libvterm subtree split FETCH_HEAD --prefix=src/libvterm --branch=vim
+
+        # Get info from the first commit in the branch
+        graft=`git -C libvterm log --format=%H vim | tail -n1`
+        date=`git -C libvterm show -s --format=%ci $graft`
+
+        # Deterministically create a stub commit, i.e. ignoring commit dates
+        git -C libvterm checkout 893f9b300f9e6dddd987d123d3d142fa3d5b1d0b
+        git -C libvterm read-tree $graft
+        GIT_COMMITTER_DATE="$date" git -C libvterm commit -C $graft
+
+        # Similarly rebase the whole new branch with committer dates
+        git -C libvterm rebase --committer-date-is-author-date --onto HEAD $graft vim
+
+        git -C libvterm merge-base --is-ancestor origin/vim vim
 
     - name: Push mirrors to upstream branches
       run: |

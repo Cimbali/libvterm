@@ -27,14 +27,20 @@ jobs:
 
     - name: Import upstream bazaar
       run: |
-        python3 -m breezy checkout http://bazaar.leonerd.org.uk/c/libvterm bazaar-leonerd-libvterm
-        python3 -m breezy fast-export --plain -b bazaar bazaar-leonerd-libvterm | git -C libvterm fast-import --force
+        while read remote branch; do
+          echo Getting bazaar branch $remote to git branch $branch
+          python3 -m breezy checkout https://bazaar.leonerd.org.uk/c/$remote bazaar-leonerd-$remote
+          python3 -m breezy fast-export --plain -b $branch bazaar-leonerd-$remote | git -C libvterm fast-import --force
 
-        # Git insert a newline after a message with e.g. git commit -m 'foo'. So does the neovim/libvterm repo
-        # when importing bazaar commits. However fast-import doesn’t, so add them after the fact.
-        git -C libvterm filter-branch -f --msg-filter 'cat ; echo' --tag-name-filter 'cat' bazaar
+          # Git insert a newline after a message with e.g. git commit -m 'foo'. So does the neovim/libvterm repo
+          # when importing bazaar commits. However fast-import doesn’t, so add them after the fact.
+          git -C libvterm filter-branch -f --msg-filter 'cat ; echo' --tag-name-filter 'cat' $branch
 
-        git -C libvterm merge-base --is-ancestor origin/bazaar bazaar
+          git -C libvterm merge-base --is-ancestor origin/$branch $branch
+        done <<EOF
+        libvterm bazaar
+        libvterm.WIP-REFLOW bazaar-reflow
+        EOF
 
     - name: Import nvim fork
       run: |

@@ -29,7 +29,7 @@ jobs:
       run: |
         while read remote branch; do
           echo Getting bazaar branch $remote to git branch $branch
-          python3 -m breezy checkout https://bazaar.leonerd.org.uk/c/$remote bazaar-leonerd-$remote
+          python3 -m breezy -Ossl.cert_reqs=none checkout https://bazaar.leonerd.org.uk/c/$remote bazaar-leonerd-$remote
           python3 -m breezy fast-export --plain -b $branch bazaar-leonerd-$remote | git -C libvterm fast-import --force
 
           # Git insert a newline after a message with e.g. git commit -m 'foo'. So does the neovim/libvterm repo

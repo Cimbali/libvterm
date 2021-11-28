@@ -33,6 +33,10 @@ jobs:
         python3 -m breezy checkout http://bazaar.leonerd.org.uk/c/libvterm bazaar-leonerd-libvterm
         python3 -m breezy fast-export --plain -b bazaar bazaar-leonerd-libvterm | git -C libvterm fast-import
 
+        # Git insert a newline after a message with e.g. git commit -m 'foo'. So does the neovim/libvterm repo
+        # when importing bazaar commits. However fast-import doesn’t, so add them after the fact.
+        git -C libvterm filter-branch -f --msg-filter 'cat ; echo' --tag-name-filter 'cat' bazaar
+
         git -C libvterm merge-base --is-ancestor origin/bazaar bazaar
 
     - name: Import nvim fork
@@ -54,7 +58,7 @@ jobs:
         git -C libvterm subtree -q split FETCH_HEAD --prefix=src/libvterm --branch=vim
 
         # Get info of the first commits in the orphan branch and the target branch
-        parent=893f9b300f9e6dddd987d123d3d142fa3d5b1d0b
+        parent=`git -C libvterm merge-base origin/vim origin/bazaar`
         stub=`git -C libvterm log --format=%H origin/vim ^$parent | tail -n1`
         graft=`git -C libvterm log --format=%H vim | tail -n1`
 

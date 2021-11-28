@@ -8,7 +8,6 @@ This repo stores various mirrors of libvterm in different branches, automaticall
   This is extracted using git subtree command, and artificially “grafted” onto a bazaar commit to provide common history.
   The selected common ancestor is the commit that seemed most appropriate (smallest diff), but may be historically incorrect.
 - [nvim](https://github.com/Cimbali/libvterm/tree/nvim): mirrors [the neovim fork of libvterm](https://github.com/neovim/libvterm)
-  This seems to be a truncated version of the bazaar branch, until some release (v0.1.3 at time of writing),
-  with commits sha1s inconsistent with the version of importing bazaar commits used in the repo.
+  This seems to be a truncated version of the bazaar branch, until some release (v0.1.3 at time of writing).
 
 This allows to e.g. [compare the branches](https://github.com/Cimbali/libvterm/compare/vim...bazaar) to see what divergences happened since forking.

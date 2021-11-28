@@ -1,6 +1,6 @@
 # Libvterm mirrors
 
-This repo stores various mirrors of libvterm in different branches, automatically updated.
+This repo stores various mirrors of libvterm in different branches, automatically updated. [![Update mirrors](https://github.com/Cimbali/libvterm/actions/workflows/update.yml/badge.svg)](https://github.com/Cimbali/libvterm/actions/workflows/update.yml)
 
 - [bazaar](https://github.com/Cimbali/libvterm/tree/bazaar): mirrors [original (or upstream) code repo](http://bazaar.leonerd.org.uk/c/libvterm/).
   This is done with [breezy](https://www.breezy-vcs.org/doc/en/) fast-export and git fast-import for consistent results.

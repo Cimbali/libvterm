@@ -26,8 +26,10 @@ jobs:
         fetch-depth: 0
 
     - name: Import upstream bazaar
+      env:
+        FILTER_BRANCH_SQUELCH_WARNING: 1
       run: |
-        while read remote branch; do
+        while IFS=: read remote branch; do
           echo Getting bazaar branch $remote to git branch $branch
           python3 -m breezy -Ossl.cert_reqs=none checkout https://bazaar.leonerd.org.uk/c/$remote bazaar-leonerd-$remote
           python3 -m breezy fast-export --plain -b $branch bazaar-leonerd-$remote | git -C libvterm fast-import --force
@@ -37,10 +39,7 @@ jobs:
           git -C libvterm filter-branch -f --msg-filter 'cat ; echo' --tag-name-filter 'cat' $branch
 
           git -C libvterm merge-base --is-ancestor origin/$branch $branch
-        done <<EOF
-        libvterm bazaar
-        libvterm.WIP-REFLOW bazaar-reflow
-        EOF
+        done < libvterm/bazaar-branches.csv
 
     - name: Import nvim fork
       run: |

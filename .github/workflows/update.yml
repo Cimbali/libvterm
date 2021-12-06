@@ -41,6 +41,13 @@ jobs:
           git -C libvterm merge-base --is-ancestor origin/$branch $branch
         done < libvterm/bazaar-branches.csv
 
+        # Recreate the revision numbers
+        mkdir -p libvterm/.git/refs/bazaar-revision
+        start=`git -C libvterm rev-list --first-parent --count origin/bazaar | xargs echo 1 + | bc`
+        git -C libvterm rev-list --first-parent bazaar ^origin/bazaar | tac | nl -v $start | while read n sha; do
+          echo $sha > libvterm/.git/refs/bazaar-revision/$n
+        done
+
     - name: Import nvim fork
       run: |
         git -C libvterm fetch https://github.com/neovim/libvterm master  2>&1 | cat
@@ -61,8 +68,8 @@ jobs:
 
         # Get info of the first commits in the orphan branch and the target branch
         parent=`git -C libvterm merge-base origin/vim origin/bazaar`
-        stub=`git -C libvterm log --format=%H origin/vim ^$parent | tail -n1`
-        graft=`git -C libvterm log --format=%H vim | tail -n1`
+        stub=`git -C libvterm rev-list --first-parent origin/vim ^$parent | tail -n1`
+        graft=`git -C libvterm rev-list --first-parent vim | tail -n1`
 
         # Rebase and reset committer info
         git -C libvterm rebase -q --onto $stub $graft vim
@@ -72,4 +79,4 @@ jobs:
 
     - name: Push mirrors to upstream branches
       run: |
-        git -C libvterm push origin --tags bazaar nvim vim
+        git -C libvterm push origin --tags bazaar nvim vim refs/bazaar-revision/*:refs/bazaar-revision/*

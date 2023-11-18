@@ -34,9 +34,10 @@ jobs:
           python3 -m breezy -Ossl.cert_reqs=none checkout https://bazaar.leonerd.org.uk/c/$remote bazaar-leonerd-$remote
           python3 -m breezy fast-export --plain -b $branch bazaar-leonerd-$remote | git -C libvterm fast-import --force
 
-          # Git insert a newline after a message with e.g. git commit -m 'foo'. So does the neovim/libvterm repo
-          # when importing bazaar commits. However fast-import doesn’t, so add them after the fact.
-          git -C libvterm filter-branch -f --msg-filter 'cat ; echo' --tag-name-filter 'cat' $branch
+          # fast-import seems to remove quotes in names when compared to git pull bzr:: used by neovim
+          # (since their change in commits/process end of Oct. 2023)
+          # so re-insert quotes with filter-branch
+          git -C libvterm filter-branch -f --env-filter 'export GIT_AUTHOR_NAME="${GIT_AUTHOR_NAME/Paul LeoNerd Evans/Paul \"LeoNerd\" Evans}" GIT_COMMITTER_NAME="${GIT_COMMITTER_NAME/Paul LeoNerd Evans/Paul \"LeoNerd\" Evans}"' --tag-name-filter cat $branch
 
           git -C libvterm merge-base --is-ancestor origin/$branch $branch
         done < libvterm/bazaar-branches.csv
@@ -49,7 +50,6 @@ jobs:
         done
 
     - name: Import nvim fork
-      if: false
       run: |
         git -C libvterm fetch https://github.com/neovim/libvterm mirror  2>&1 | cat
         git -C libvterm branch nvim FETCH_HEAD

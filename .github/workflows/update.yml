@@ -50,7 +50,7 @@ jobs:
 
     - name: Import nvim fork
       run: |
-        git -C libvterm fetch https://github.com/neovim/libvterm master  2>&1 | cat
+        git -C libvterm fetch https://github.com/neovim/libvterm mirror  2>&1 | cat
         git -C libvterm branch nvim FETCH_HEAD
 
         git -C libvterm merge-base --is-ancestor origin/nvim nvim

@@ -17,6 +17,7 @@ jobs:
         python3 -m pip install breezy fastimport
         git config --global user.email "github-actions[bot]@users.noreply.github.com"
         git config --global user.name "github-actions[bot]"
+        sudo apt-get install git-filter-repo
 
     - name: Checkout this repo
       uses: actions/checkout@v3
@@ -25,20 +26,23 @@ jobs:
         ref: main
         fetch-depth: 0
 
-    - name: Import upstream bazaar
-      env:
-        FILTER_BRANCH_SQUELCH_WARNING: 1
+    - name: Fetch upstream bazaar
       run: |
+        git init bazaar-import
         while IFS=, read remote branch; do
           echo Getting bazaar branch $remote to git branch $branch
           python3 -m breezy -Ossl.cert_reqs=none checkout https://bazaar.leonerd.org.uk/c/$remote bazaar-leonerd-$remote
-          python3 -m breezy fast-export --plain -b $branch bazaar-leonerd-$remote | git -C libvterm fast-import --force
+          python3 -m breezy fast-export --plain -b $branch bazaar-leonerd-$remote | git -C bazaar-import fast-import --force
+        done < libvterm/bazaar-branches.csv
 
-          # fast-import seems to remove quotes in names when compared to git pull bzr:: used by neovim
-          # (since their change in commits/process end of Oct. 2023)
-          # so re-insert quotes with filter-branch
-          git -C libvterm filter-branch -f --env-filter 'export GIT_AUTHOR_NAME="${GIT_AUTHOR_NAME/Paul LeoNerd Evans/Paul \"LeoNerd\" Evans}" GIT_COMMITTER_NAME="${GIT_COMMITTER_NAME/Paul LeoNerd Evans/Paul \"LeoNerd\" Evans}"' --tag-name-filter cat $branch
+        # fast-import seems to remove quotes in names when compared to git pull bzr:: used by neovim (since their change in commits end of Oct. 2023)
+        # so re-insert quotes with filter-repo
+        git -C bazaar-import filter-repo --force --name-callback "return name.replace(b'Paul LeoNerd Evans', b'Paul \"LeoNerd\" Evans')"
 
+    - name: Update bazaar refs in the repo
+      run: |
+        while IFS=, read remote branch; do
+          git -C libvterm fetch ../bazaar-import/ $branch:refs/heads/$branch
           git -C libvterm merge-base --is-ancestor origin/$branch $branch
         done < libvterm/bazaar-branches.csv
 

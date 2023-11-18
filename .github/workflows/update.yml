@@ -29,7 +29,7 @@ jobs:
       env:
         FILTER_BRANCH_SQUELCH_WARNING: 1
       run: |
-        while IFS=: read remote branch; do
+        while IFS=, read remote branch; do
           echo Getting bazaar branch $remote to git branch $branch
           python3 -m breezy -Ossl.cert_reqs=none checkout https://bazaar.leonerd.org.uk/c/$remote bazaar-leonerd-$remote
           python3 -m breezy fast-export --plain -b $branch bazaar-leonerd-$remote | git -C libvterm fast-import --force

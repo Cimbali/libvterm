@@ -49,6 +49,7 @@ jobs:
         done
 
     - name: Import nvim fork
+      if: false
       run: |
         git -C libvterm fetch https://github.com/neovim/libvterm mirror  2>&1 | cat
         git -C libvterm branch nvim FETCH_HEAD
@@ -79,4 +80,5 @@ jobs:
 
     - name: Push mirrors to upstream branches
       run: |
-        git -C libvterm push origin --tags bazaar nvim vim refs/bazaar-revision/*:refs/bazaar-revision/*
+        # nvim
+        git -C libvterm push origin --tags bazaar vim refs/bazaar-revision/*:refs/bazaar-revision/*

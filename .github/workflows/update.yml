@@ -14,10 +14,9 @@ jobs:
     steps:
     - name: Install dependencies
       run: |
-        sudo python3 -m pip install breezy fastimport
         git config --global user.email "github-actions[bot]@users.noreply.github.com"
         git config --global user.name "github-actions[bot]"
-        sudo apt-get install git-filter-repo
+        sudo apt-get install python3-fastimport python3-breezy git-filter-repo
 
     - name: Checkout this repo
       uses: actions/checkout@v3

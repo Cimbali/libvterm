@@ -19,13 +19,15 @@ jobs:
         sudo apt-get install python3-fastimport python3-breezy git-filter-repo
 
     - name: Checkout this repo
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
       with:
         path: libvterm
         ref: main
         fetch-depth: 0
 
     - name: Fetch upstream bazaar
+      id: breezy
+      continue-on-error: true
       run: |
         git init bazaar-import
         while IFS=, read remote branch; do
@@ -39,6 +41,8 @@ jobs:
         git -C bazaar-import filter-repo --force --name-callback "return name.replace(b'Paul LeoNerd Evans', b'Paul \"LeoNerd\" Evans')"
 
     - name: Update bazaar refs in the repo
+      if: steps.breezy.outcome == 'success'
+      id: bazaar
       run: |
         while IFS=, read remote branch; do
           git -C libvterm fetch ../bazaar-import/ $branch:refs/heads/$branch
@@ -53,6 +57,7 @@ jobs:
         done
 
     - name: Import nvim fork
+      id: nvim
       run: |
         git -C libvterm fetch https://github.com/neovim/libvterm mirror  2>&1 | cat
         git -C libvterm branch nvim FETCH_HEAD
@@ -60,6 +65,7 @@ jobs:
         git -C libvterm merge-base --is-ancestor origin/nvim nvim
 
     - name: Import vim fork
+      id: vim
       env:
         FILTER_BRANCH_SQUELCH_WARNING: 1
       run: |
@@ -82,6 +88,9 @@ jobs:
         git -C libvterm merge-base --is-ancestor origin/vim vim
 
     - name: Push mirrors to upstream branches
-      run: |
-        # nvim
-        git -C libvterm push origin --tags bazaar vim refs/bazaar-revision/*:refs/bazaar-revision/*
+      run: >
+        git -C libvterm push origin --tags
+        ${{ steps.vim.outcome == 'success' && 'vim' || '' }}
+        ${{ steps.nvim.outcome == 'success' && 'nvim' || '' }}
+        ${{ steps.bazaar.outcome == 'success' && 'bazaar' || '' }}
+        ${{ steps.bazaar.outcome == 'success' && 'refs/bazaar-revision/*:refs/bazaar-revision/*' || '' }}
